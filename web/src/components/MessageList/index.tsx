@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import io from "socket.io-client";
 import styles from "./styles.module.scss";
 import { api } from "../../services/api";
 import logoImg from "../../assets/logo.svg";
 
-type Messages = {
+type Message = {
 	id: string;
 	text: string;
 	user: {
@@ -12,11 +13,36 @@ type Messages = {
 	};
 };
 
+let messagesQueue: Message[] = [];
+
+// Endereço do backend
+const socket = io("http://localhost:4000");
+
+// no evento X, faça algo
+socket.on("new_message", (newMessage: Message) => {
+	messagesQueue.push(newMessage);
+});
+
 export function MessageList() {
-	const [messages, setMessages] = useState<Messages[]>([]);
+	const [messages, setMessages] = useState<Message[]>([]);
+
+	// useEffect para ouvir as novas mensagens
+	useEffect(() => {
+		setInterval(() => {
+			if (messagesQueue.length > 0) {
+				setMessages(
+					(prevState) =>
+						[messagesQueue[0], prevState[0], prevState[1]].filter(Boolean) // Utilizando valores do estado anterior
+				);
+
+				// remove o primeiro elemento
+				messagesQueue.shift();
+			}
+		}, 3000);
+	}, []);
 
 	useEffect(() => {
-		api.get<Messages[]>("messages/last3").then((response) => {
+		api.get<Message[]>("messages/last3").then((response) => {
 			setMessages(response.data);
 		});
 	}, []);
